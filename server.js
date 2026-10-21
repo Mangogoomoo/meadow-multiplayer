@@ -44,21 +44,21 @@ function monsterBase(type){
   switch(type){
     case 'rat': return {name:'Rat',hp:7,exp:9,hitReq:10,knockResist:1,respawn:6000};
     case 'bat': return {name:'Bat',hp:6,exp:11,hitReq:14,knockResist:.85,respawn:6500};
-    case 'baphomet': return {name:'Baphomet',hp:1800,exp:800,hitReq:28,knockResist:.18,respawn:120000};
-    case 'baphometjr': return {name:'Baphomet.Jr',hp:95,exp:55,hitReq:18,knockResist:.45,respawn:35000};
+    case 'baphomet': return {name:'Baphomet',hp:1800,exp:800,hitReq:28,knockResist:.18,respawn:60000};
+    case 'baphometjr': return {name:'Baphomet.Jr',hp:95,exp:55,hitReq:18,knockResist:.45,respawn:0};
   }
 }
-function addMonster(type,index,point=null){const base=monsterBase(type); if(!point) point= type==='baphomet' ? bossCenter() : randomMonsterSpawn(type); const id=(type==='baphomet'?'boss':type)+'-'+index+'-'+Math.random().toString(36).slice(2,6); const boss=type==='baphomet'; monsters.set(id,{id,type,name:base.name,x:point.x,y:point.y,homeX:point.x,homeY:point.y,dir:'down',hp:base.hp,maxHp:base.hp,alive:true,respawnAt:0,nextAttack:0,attackAt:0,chargeUntil:0,vx:0,vy:0,wander:Math.random()*6,hitCooldown:new Map(),knockX:0,knockY:0,stunnedUntil:0,exp:base.exp,hitReq:base.hitReq,knockResist:base.knockResist,respawnMs:base.respawn,bossPhase:false,spawnedAdds:false,boss}); return id;}
+function addMonster(type,index,point=null){const base=monsterBase(type); if(!point) point= type==='baphomet' ? bossCenter() : randomMonsterSpawn(type); const id=(type==='baphomet'?'boss':type)+'-'+index+'-'+Math.random().toString(36).slice(2,6); const boss=type==='baphomet'; monsters.set(id,{id,type,name:base.name,x:point.x,y:point.y,homeX:point.x,homeY:point.y,dir:'down',hp:base.hp,maxHp:base.hp,alive:true,respawnAt:0,nextAttack:0,attackAt:0,chargeUntil:0,vx:0,vy:0,wander:Math.random()*6,hitCooldown:new Map(),knockX:0,knockY:0,stunnedUntil:0,exp:base.exp,hitReq:base.hitReq,knockResist:base.knockResist,respawnMs:base.respawn,bossPhase:false,spawnedAdds:false,quake75:false,quake25:false,quakeStart:0,quakeX:0,quakeY:0,boss}); return id;}
 for(let i=0;i<36;i++) addMonster('rat',i);
 for(let i=0;i<32;i++) addMonster('bat',i);
 addMonster('baphomet',1,bossCenter());
 function playerView(p){return{id:p.id,x:+p.x.toFixed(1),y:+p.y.toFixed(1),dir:p.dir,color:p.color,name:p.name,level:p.level,exp:p.exp,hp:+p.hp.toFixed(2),maxHp:maxHP(p),stats:p.stats,statPoints:totalPoints(p.level)-spentStats(p.stats),spinAt:p.spinAt,spinCooldownUntil:p.spinCooldownUntil,leapAt:p.leapAt,leapCooldownUntil:p.leapCooldownUntil,hitRating:hitRating(p),magicAttack:1+p.stats.INT*.35,attacking:p.attacking,attackAt:p.attackAt,attackAngle:p.attackAngle,jumpAt:p.jumpAt,invulnerableUntil:p.invulnerableUntil,energy:+p.energy.toFixed(1),maxEnergy:MAX_ENERGY};}
-function monsterView(m){return{id:m.id,type:m.type,name:m.name,x:+m.x.toFixed(1),y:+m.y.toFixed(1),hp:+m.hp.toFixed(2),maxHp:m.maxHp,dir:m.dir,attackAt:m.attackAt,chargeUntil:m.chargeUntil,stunnedUntil:m.stunnedUntil,alive:m.alive,boss:m.boss};}
+function monsterView(m){return{id:m.id,type:m.type,name:m.name,x:+m.x.toFixed(1),y:+m.y.toFixed(1),hp:+m.hp.toFixed(2),maxHp:m.maxHp,dir:m.dir,attackAt:m.attackAt,chargeUntil:m.chargeUntil,stunnedUntil:m.stunnedUntil,alive:m.alive,boss:m.boss,quakeStart:m.quakeStart||0,quakeX:m.quakeX||0,quakeY:m.quakeY||0};}
 function awardExp(p,amount){if(p.level===MAX_LEVEL)return; p.exp+=amount; while(p.level<MAX_LEVEL&&p.exp>=expNeeded(p.level)){p.exp-=expNeeded(p.level);p.level++;p.hp=Math.min(maxHP(p),p.hp+1.5);broadcast({type:'message',text:`${p.name} reached level ${p.level}!`});} if(p.level===MAX_LEVEL)p.exp=0;}
 function knock(entity,vx,vy,mult=1){entity.knockX=(entity.knockX||0)+vx*mult; entity.knockY=(entity.knockY||0)+vy*mult;}
 function showDamage(x,y,amount,kind,now,angle=null){broadcast({type:'damage_fx',x:+x.toFixed(1),y:+y.toFixed(1),amount:+amount.toFixed(1),kind,at:now,angle:Number.isFinite(angle)?+angle.toFixed(3):null});}
 function applyDamage(p,amount,now,sourceX=p.x,sourceY=p.y){if(p.hp<=0||now<p.invulnerableUntil||(p.leapAt&&now-p.leapAt<LEAP_DURATION))return;p.hp=Math.max(0,Math.round((p.hp-amount)*100)/100);p.invulnerableUntil=now+650;const a=Math.atan2(p.y-sourceY,p.x-sourceX);knock(p,Math.cos(a)*240,Math.sin(a)*240);showDamage(p.x,p.y,amount,'player',now,a);if(p.hp<=0){const at=spawn();p.x=at.x;p.y=at.y;p.hp=maxHP(p);p.invulnerableUntil=now+1800;broadcast({type:'message',text:`${p.name} was knocked out and respawned!`});}}
-function defeatMonster(m,p,now){m.alive=false;m.respawnAt=now+m.respawnMs; if(m.type!=='baphomet'&&m.type!=='baphometjr'){const rp=randomMonsterSpawn(m.type); m.homeX=rp.x;m.homeY=rp.y;} awardExp(p,m.exp); broadcast({type:'message',text:`${p.name} defeated ${m.name} (+${m.exp} EXP)`});}
+function defeatMonster(m,p,now){m.alive=false;m.respawnAt=now+m.respawnMs;if(m.type==='baphomet'){m.quakeStart=0;for(const [id,add] of monsters)if(add.type==='baphometjr')monsters.delete(id);broadcast({type:'message',text:'Baphomet has fallen! His summons vanish.'});}if(m.type==='baphometjr')monsters.delete(m.id); if(m.type!=='baphomet'&&m.type!=='baphometjr'){const rp=randomMonsterSpawn(m.type); m.homeX=rp.x;m.homeY=rp.y;} awardExp(p,m.exp); broadcast({type:'message',text:`${p.name} defeated ${m.name} (+${m.exp} EXP)`});}
 function hitChance(p,m){const requirement=m.hitReq||8; return Math.min(.98,hitRating(p)>=requirement?.95:.55+hitRating(p)/requirement*.35);}
 function performSlash(p,now,angle){if(now-p.lastSlash<slashCooldown(p)||p.hp<=0||(p.spinAt&&now-p.spinAt<SPIN_DURATION))return false; p.lastSlash=now;p.attacking=true;p.attackAt=now;p.attackAngle=angle; const ux=Math.cos(angle),uy=Math.sin(angle); for(const m of monsters.values()){ if(!m.alive)continue; const dx=m.x-p.x,dy=m.y-p.y,forward=dx*ux+dy*uy,side=Math.abs(dx*uy-dy*ux); const range=m.type==='baphomet'?92:78; const width=m.type==='baphomet'?50:36; if(forward>0&&forward<range&&side<width){ if(Math.random()>hitChance(p,m)){showDamage(m.x,m.y,0,'miss',now,angle); if(p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Miss! Increase DEX to improve accuracy.'})); continue;} const crit=Math.random()<critChance(p),damage=attackDamage(p)*(crit?critMultiplier(p):1); m.hp=Math.max(0,m.hp-damage); knock(m,ux*270,uy*270,m.knockResist); showDamage(m.x,m.y,damage,crit?'crit':'monster',now,angle); if(crit&&p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Critical hit!'})); if(m.hp<=0) defeatMonster(m,p,now); }} return true;}
 
@@ -110,9 +110,26 @@ setInterval(()=>{
 
   for(const m of monsters.values()){
     if(m.alive&&(m.knockX||m.knockY)){const kx=m.knockX*dt,ky=m.knockY*dt;if(!collides(m.x+kx,m.y,11))m.x+=kx;if(!collides(m.x,m.y+ky,11))m.y+=ky;m.knockX*=Math.exp(-dt*11);m.knockY*=Math.exp(-dt*11);}
-    if(!m.alive){ if(now>=m.respawnAt){m.alive=true;m.hp=m.maxHp;m.nextAttack=now+1000;m.stunnedUntil=0;m.hitCooldown.clear(); if(m.type==='baphomet'){const p=bossCenter();m.homeX=p.x;m.homeY=p.y;m.x=p.x;m.y=p.y;m.spawnedAdds=false;} else {const rp=m.type==='baphometjr' ? {x:bossCenter().x+(Math.random()-.5)*180,y:bossCenter().y+(Math.random()-.5)*160} : randomMonsterSpawn(m.type); m.homeX=rp.x;m.homeY=rp.y;m.x=rp.x;m.y=rp.y;}} continue; }
+    if(!m.alive){ if(m.type==='baphometjr'){monsters.delete(m.id);continue;} if(now>=m.respawnAt){m.alive=true;m.hp=m.maxHp;m.nextAttack=now+1000;m.stunnedUntil=0;m.hitCooldown.clear(); if(m.type==='baphomet'){const p=bossCenter();m.homeX=p.x;m.homeY=p.y;m.x=p.x;m.y=p.y;m.spawnedAdds=false;m.quake75=false;m.quake25=false;m.quakeStart=0;} else {const rp=m.type==='baphometjr' ? {x:bossCenter().x+(Math.random()-.5)*180,y:bossCenter().y+(Math.random()-.5)*160} : randomMonsterSpawn(m.type); m.homeX=rp.x;m.homeY=rp.y;m.x=rp.x;m.y=rp.y;}} continue; }
+    if(m.type==='baphomet'){
+      // Two once-per-life earthquake casts at 75% and 25% HP. A cast pauses other boss attacks.
+      if(m.quakeStart && now-m.quakeStart>=3000){
+        const qx=m.quakeX,qy=m.quakeY;
+        for(const player of players.values())if(player.initialized&&Math.hypot(player.x-qx,player.y-qy)<=360){
+          // Shockwaves punish anyone inside the clearly telegraphed zone.
+          applyDamage(player,13+Math.random()*5,now,qx,qy);
+        }
+        broadcast({type:'quake_impact',x:qx,y:qy,radius:360,at:now});
+        m.quakeStart=0;m.nextAttack=now+850;
+      }
+      if(!m.quakeStart){
+        if(!m.quake75&&m.hp<=m.maxHp*.75){m.quake75=true;m.quakeStart=now;m.quakeX=m.x;m.quakeY=m.y;}
+        else if(!m.quake25&&m.hp<=m.maxHp*.25){m.quake25=true;m.quakeStart=now;m.quakeX=m.x;m.quakeY=m.y;}
+        if(m.quakeStart)broadcast({type:'message',text:'Baphomet begins casting Earthquake! Get out of the circle!'});
+      }
+    }
     if(m.type==='baphomet'&&!m.spawnedAdds&&m.hp<=m.maxHp*.5){m.spawnedAdds=true;for(let i=0;i<5;i++){const ang=(Math.PI*2*i)/5;addMonster('baphometjr',Date.now()+i,{x:m.x+Math.cos(ang)*80,y:m.y+Math.sin(ang)*70});}broadcast({type:'message',text:'Baphomet summons 5 Baphomet.Jr!'});}
-    if(now<m.stunnedUntil)continue;
+    if(now<m.stunnedUntil||(m.type==='baphomet'&&m.quakeStart))continue;
     let target=null,dist=Infinity; for(const p of players.values()){if(!p.initialized)continue; const d=Math.hypot(p.x-m.x,p.y-m.y); if(d<dist){dist=d;target=p;}}
     if(target&&dist<420){const ux=(target.x-m.x)/Math.max(1,dist),uy=(target.y-m.y)/Math.max(1,dist);m.dir=Math.abs(ux)>Math.abs(uy)?(ux>0?'right':'left'):(uy>0?'down':'up');
       if(m.type==='rat'){

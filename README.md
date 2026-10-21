@@ -144,3 +144,9 @@ Both JavaScript files passed Node syntax checks. A live multiplayer integration 
 - Max player level is now **99**, and all six stats cap at **99**.
 - Stat point costs now step up every **20** stat ranks, rather than every 10, to keep 99 reachable with five points per level. A single stat needs 295 points to max; level 99 provides 490 points total. You can max one stat with points left over, but not two.
 - Notifications now appear in a right-side stack below the minimap and debug level button, rather than overlapping them.
+
+## Baphomet phase update
+- Baphomet respawns 60 seconds after defeat, with fresh phase flags.
+- Baphomet.Jr spawn once when the boss first reaches 50% health; defeated juniors do not respawn. All remaining juniors are removed immediately when the boss dies.
+- Earthquake casts at the first crossing of 75% and 25% boss health, once each per boss life. Baphomet stands still to cast for 3 seconds. A large 360-unit radius red warning circle, shrinking countdown circle, and EARTHQUAKE castbar appear on all clients. When the cast completes, anyone in the radius takes approximately 13-18 HP (subject to existing invulnerability). The boss resumes fighting after the cast.
+- Update `server.js` and `public/game.js` together. The other project files are included unchanged.
