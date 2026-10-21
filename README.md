@@ -75,3 +75,14 @@ Press Space/F or click the corresponding button. A checkmark confirms the WebSoc
 server received and accepted the action. If it stays on "sent…", check that the
 latest server.js was committed and deployed to Render. Both client and server files
 must be deployed together.
+
+
+## Remote animation sync fix
+
+Jump and sword slash effects now use browser-local animation timing rather than
+subtracting the server's timestamps from the browser's clock. The server still
+authoritatively handles sword damage, jump cooldowns and multiplayer state.
+Action acknowledgements provide immediate animation feedback, and new action
+timestamps in state snapshots animate other connected players as well.
+This fixes animations not showing when the Render server clock differs from the
+player's PC clock. Player saves remain unchanged.
