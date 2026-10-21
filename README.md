@@ -105,3 +105,12 @@ player's PC clock. Player saves remain unchanged.
 - Damage numbers and misses appear at the point of impact.
 - Jump now lasts 480 ms. Server rejects bat spit hits throughout the jump window (while airborne).
 - Replace server.js AND public/game.js AND public/index.html together. Existing browser saves stay intact.
+
+
+## Social and skills update
+- Chat at lower left is broadcast to connected players; latest 30 messages remain in RAM until the server restarts.
+- Reset stats at bottom of Stats window returns spent points, without changing level.
+- Delete character double-confirms, clears localStorage, and reloads a fresh character. It only affects that browser/site origin.
+- Action bar has five slots, shortcut keys 1–5. Slot 1 Whirlwind spins for three seconds while moving, deals repeated area damage, and has an 11-second cooldown from activation. Slots 2–5 are placeholders.
+- Controls guide moves to lower right.
+- Changes are server authoritative for stat resets, chat, and Whirlwind. Use updated server.js and both public files together.
