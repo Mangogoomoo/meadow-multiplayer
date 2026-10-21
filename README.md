@@ -86,3 +86,13 @@ Action acknowledgements provide immediate animation feedback, and new action
 timestamps in state snapshots animate other connected players as well.
 This fixes animations not showing when the Render server clock differs from the
 player's PC clock. Player saves remain unchanged.
+
+## Stats and mouse combat update
+
+- Move with WASD or arrow keys. Movement interpolation and camera follow are faster for a snappier feel.
+- Press Space to jump. **Left-click on the map** to swing the sword toward the cursor. F is no longer bound to attack.
+- Use the **Stats** button in the top-left HUD to show STR, AGI, VIT, INT, DEX and LUK and spend available points.
+- You earn **5 stat points per level**, 245 total by level 50. All stats begin at zero and cap at 50. Stat levels 1–10 cost one point each, 11–20 cost two each, 21–30 cost three, 31–40 cost four, 41–50 cost five. Maximizing one stat takes **150 points**, leaving **95 points**, so you cannot maximize two stats.
+- STR adds melee damage, AGI reduces sword cooldown, VIT increases max health, INT increases displayed magic damage (magic spells not implemented yet), DEX improves monster hit rating, LUK improves critical chance and critical damage. Bats need more hit rating than rats. Low hit rating can cause misses.
+- Save data now includes allocated stats and remains in browser localStorage. The server checks saved stat allocations against points earned for the submitted level, but browser saves remain editable and are not appropriate for competitive progression.
+- Replace the full `server.js`, `public/game.js`, and `public/index.html` together in your GitHub repository. Render must run the updated server for stats and mouse aiming to work.

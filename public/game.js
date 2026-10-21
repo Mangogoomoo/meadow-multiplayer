@@ -23,10 +23,10 @@ function checkServerVersion(version) {
 const readSave=()=>{try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')||{};}catch{return{};}};
 const save=readSave();
 const players=new Map(),monsters=new Map(),projectiles=new Map(),keys=new Set();
-let ws=null,myId=null,last=performance.now(),cameraX=0,cameraY=0,retries=0,viewW=0,viewH=0,dpr=1,lastInput=0,lastSaved=0,lastHp=null,readyToSave=false;
+let mouseX=0,mouseY=0,ws=null,myId=null,last=performance.now(),cameraX=0,cameraY=0,retries=0,viewW=0,viewH=0,dpr=1,lastInput=0,lastSaved=0,lastHp=null,readyToSave=false;
 const colors=['#f2a378','#8edbff','#d6a7ff','#ffe08d','#ffc0d9','#9be7ae'];
 ui('name').value=typeof save.name==='string'?save.name:'Adventurer';
-function persist(){const p=players.get(myId);if(!p||!readyToSave)return;const s={name:p.name,x:p.tx,y:p.ty,hp:p.hp,exp:p.exp,level:p.level};try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s));}catch(e){console.warn('Unable to save:',e);}}
+function persist(){const p=players.get(myId);if(!p||!readyToSave)return;const s={name:p.name,x:p.tx,y:p.ty,hp:p.hp,exp:p.exp,level:p.level,stats:p.stats};try{localStorage.setItem(STORAGE_KEY,JSON.stringify(s));}catch(e){console.warn('Unable to save:',e);}}
 addEventListener('pagehide',persist);document.addEventListener('visibilitychange',()=>{if(document.hidden)persist();});
 function resize(){dpr=Math.min(devicePixelRatio||1,2);viewW=innerWidth;viewH=innerHeight;canvas.width=Math.floor(viewW*dpr);canvas.height=Math.floor(viewH*dpr);ctx.setTransform(dpr,0,0,dpr,0,0);ctx.imageSmoothingEnabled=false;}addEventListener('resize',resize);resize();
 function hash(x,y,seed=12345){let n=(Math.imul(x+seed,374761393)+Math.imul(y-seed,668265263))|0;n=Math.imul(n^(n>>>13),1274126177);return((n^(n>>>16))>>>0)/4294967296;}
@@ -69,7 +69,7 @@ function updatePlayer(p){
 }
 function updateMonster(m){const old=monsters.get(m.id);if(old)Object.assign(old,{...m,tx:m.x,ty:m.y,x:old.x,y:old.y});else monsters.set(m.id,{...m,tx:m.x,ty:m.y});}
 function xpNeeded(level){return Math.round(10+level*6+level*level*1.3);}
-function updateHUD(){const p=players.get(myId);if(!p)return;ui('level').textContent=`Level ${p.level}${p.level===50?' (MAX)':''}`;ui('hptext').textContent=`${+p.hp.toFixed(1)} / ${+p.maxHp.toFixed(1)} HP`;ui('hpbar').style.width=(p.hp/p.maxHp*100)+'%';const required=p.level>=50?0:xpNeeded(p.level);ui('exptext').textContent=p.level===50?'MAX':`${Math.floor(p.exp)} / ${required}`;ui('expbar').style.width=p.level===50?'100%':(p.exp/required*100)+'%';if(lastHp!==null&&p.hp<lastHp)ui('hpbar').style.background='#ff4949';else ui('hpbar').style.background='#eb6c72';lastHp=p.hp;}
+function updateHUD(){const p=players.get(myId);if(!p)return;ui('level').textContent=`Level ${p.level}${p.level===50?' (MAX)':''}`;ui('hptext').textContent=`${+p.hp.toFixed(1)} / ${+p.maxHp.toFixed(1)} HP`;ui('hpbar').style.width=(p.hp/p.maxHp*100)+'%';const required=p.level>=50?0:xpNeeded(p.level);ui('exptext').textContent=p.level===50?'MAX':`${Math.floor(p.exp)} / ${required}`;ui('expbar').style.width=p.level===50?'100%':(p.exp/required*100)+'%';if(lastHp!==null&&p.hp<lastHp)ui('hpbar').style.background='#ff4949';else ui('hpbar').style.background='#eb6c72';lastHp=p.hp;renderStats(p);}
 function notice(s){const el=document.createElement('div');el.className='notice';el.textContent=s;ui('notices').prepend(el);setTimeout(()=>el.remove(),3800);}
 const movement=new Set(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright']);
 function emit(type,payload={}){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type,...payload}));}
@@ -78,7 +78,7 @@ function emit(type,payload={}){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.s
 function handleAction(action){
   if(!ws||ws.readyState!==WebSocket.OPEN){ui('actionstatus').textContent='Not connected';return;}
   ui('actionstatus').textContent=(action==='slash'?'Sword':'Jump')+' sent…';
-  emit(action);
+  emit(action,action==='slash'?{angle:Math.atan2(mouseY+cameraY-(players.get(myId)?.y||0),mouseX+cameraX-(players.get(myId)?.x||0))}:{});
 }
 addEventListener('keydown',e=>{
   if(document.activeElement===ui('name')){
@@ -88,12 +88,23 @@ addEventListener('keydown',e=>{
   const k=e.key.toLowerCase();
   if(movement.has(k)){e.preventDefault();keys.add(k);return;}
   if(e.code==='Space'||k===' '){e.preventDefault();if(!e.repeat)handleAction('jump');return;}
-  if(e.code==='KeyF'||k==='f'){e.preventDefault();if(!e.repeat)handleAction('slash');return;}
 });
 // Clicking the world returns focus from the name input to the game controls.
 canvas.addEventListener('pointerdown',()=>{if(document.activeElement===ui('name'))ui('name').blur();});
-ui('jumpbtn').addEventListener('click',()=>handleAction('jump'));
-ui('slashbtn').addEventListener('click',()=>handleAction('slash'));
+canvas.addEventListener('pointermove',e=>{mouseX=e.clientX;mouseY=e.clientY;});
+canvas.addEventListener('pointerdown',e=>{if(e.button===0){mouseX=e.clientX;mouseY=e.clientY;handleAction('slash');}});
+canvas.addEventListener('contextmenu',e=>e.preventDefault());
+const STAT_DESC={STR:'Melee damage',AGI:'Attack speed',VIT:'Maximum HP',INT:'Magic damage (future spells)',DEX:'Hit rating / accuracy',LUK:'Critical rate and damage'};
+ui('stat-toggle').addEventListener('click',()=>{ui('stat-panel').hidden=!ui('stat-panel').hidden;});
+ui('stat-rows').addEventListener('click',e=>{const button=e.target.closest('button[data-stat]');if(button)emit('stat',{stat:button.dataset.stat});});
+function renderStats(p){
+ ui('stat-points').textContent=`Available stat points: ${p.statPoints||0}`;
+ const current=ui('stat-rows').dataset.signature;
+ const signature=JSON.stringify([p.stats,p.statPoints]);if(current===signature)return;
+ ui('stat-rows').dataset.signature=signature;
+ ui('stat-rows').innerHTML=Object.entries(STAT_DESC).map(([k,description])=>{const n=p.stats?.[k]||0;const cost=1+Math.floor(n/10);const affordable=(p.statPoints||0)>=cost&&n<50;
+ return `<div class="stat-row"><strong>${k}</strong><strong>${n}/50</strong><span class="stat-desc">${description} · Cost ${n<50?cost:'MAX'}</span><button data-stat="${k}" ${affordable?'':'disabled'}>+</button></div>`;}).join('');
+}
 addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(movement.has(k)){e.preventDefault();keys.delete(k);}});addEventListener('blur',()=>keys.clear());
 function rename(){const name=ui('name').value.trim().slice(0,18)||'Adventurer';ui('name').value=name;emit('name',{name});const p=players.get(myId);if(p)p.name=name;persist();}
 ui('rename').addEventListener('click',rename);
@@ -104,12 +115,12 @@ function drawTile(x,y){const px=x*TILE,py=y*TILE,kind=tileAt(x,y),v=hash(x,y);ct
 function drawPlayer(p,now){const x=p.x,y=p.y,walking=Math.hypot(p.tx-p.x,p.ty-p.y)>.25,bob=walking?Math.sin(now/95)*1.3:0;const age=now-(p.visualJumpStart||0),jumping=!!p.visualJumpStart&&age>=0&&age<620,progress=jumping?age/620:0,height=jumping?Math.sin(progress*Math.PI)*25:0,shadowScale=1-height/42;ellipse(x,y+11,11*shadowScale,4*shadowScale,'#203c2a8c');ctx.save();ctx.translate(0,-height);if(Date.now()<p.invulnerableUntil&&Math.floor(now/85)%2===0)ctx.globalAlpha=.45;
 ctx.fillStyle='#3e485b';ctx.fillRect(x-7,y+4+bob,5,9);ctx.fillRect(x+2,y+4-bob,5,9);ctx.fillStyle=colors[p.color%colors.length]||colors[0];ctx.fillRect(x-9,y-9+bob,18,16);ctx.fillStyle='#f7d4a8';ctx.fillRect(x-7,y-20+bob,14,13);ctx.fillStyle='#5b4633';ctx.fillRect(x-8,y-22+bob,16,5);ctx.fillRect(x-9,y-19+bob,3,6);ctx.fillStyle='#26394a';if(p.dir==='left')ctx.fillRect(x-7,y-14+bob,2,2);else if(p.dir==='right')ctx.fillRect(x+5,y-14+bob,2,2);else if(p.dir==='down'){ctx.fillRect(x-4,y-14+bob,2,2);ctx.fillRect(x+3,y-14+bob,2,2);}else{ctx.fillStyle='#715037';ctx.fillRect(x-5,y-19+bob,10,5);}
 if(p.id===myId){ctx.strokeStyle='#f9ec91';ctx.lineWidth=1.5;ctx.strokeRect(Math.round(x-12),Math.round(y-25+bob),24,40);}
-if(p.visualAttackStart&&now-p.visualAttackStart<230){const dirs={up:-Math.PI/2,down:Math.PI/2,left:Math.PI,right:0},angle=dirs[p.dir],t=(now-p.visualAttackStart)/230;ctx.save();ctx.translate(x,y-6+bob);ctx.rotate(angle);ctx.strokeStyle='#fef2bd';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.arc(0,0,35,-1.05+t*.9,.65+t*.9);ctx.stroke();ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();ctx.restore();}
+if(p.visualAttackStart&&now-p.visualAttackStart<230){const dirs={up:-Math.PI/2,down:Math.PI/2,left:Math.PI,right:0},angle=Number.isFinite(p.attackAngle)?p.attackAngle:dirs[p.dir],t=(now-p.visualAttackStart)/230;ctx.save();ctx.translate(x,y-6+bob);ctx.rotate(angle);ctx.strokeStyle='#fef2bd';ctx.lineWidth=5;ctx.lineCap='round';ctx.beginPath();ctx.arc(0,0,35,-1.05+t*.9,.65+t*.9);ctx.stroke();ctx.strokeStyle='#ffffff';ctx.lineWidth=2;ctx.stroke();ctx.restore();}
 ctx.restore();label(`${p.name}  Lv.${p.level}`,x,y-32-height+bob,p.id===myId?'#ffef9d':'#fff',11);ctx.fillStyle='#172b21';ctx.fillRect(x-18,y-28-height+bob,36,4);ctx.fillStyle='#e86c71';ctx.fillRect(x-18,y-28-height+bob,36*Math.max(0,p.hp/p.maxHp),4);
 }
 function drawMonster(m,now){if(!m.alive)return;const x=m.x,y=m.y,bat=m.type==='bat',float=bat?Math.sin(now/180+m.x)*4:0;ellipse(x,y+10,bat?13:11,4,'#203c2a8c');if(bat){ctx.fillStyle='#553b82';ctx.beginPath();ctx.moveTo(x-4,y-8+float);ctx.lineTo(x-23,y-18+float);ctx.lineTo(x-18,y+5+float);ctx.lineTo(x-3,y+2+float);ctx.moveTo(x+4,y-8+float);ctx.lineTo(x+23,y-18+float);ctx.lineTo(x+18,y+5+float);ctx.lineTo(x+3,y+2+float);ctx.fill();ellipse(x,y-5+float,10,10,'#7955a7');ctx.fillStyle='#f2c9f6';ctx.fillRect(x-6,y-7+float,3,3);ctx.fillRect(x+3,y-7+float,3,3);}else{ellipse(x,y+2,13,9,'#91725c');ellipse(x+9,y+1,6,6,'#b18a70');ellipse(x-3,y-6,4,6,'#b18a70');ctx.strokeStyle='#ac8177';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x-11,y+5);ctx.quadraticCurveTo(x-25,y+13,x-28,y-2);ctx.stroke();ctx.fillStyle='#ecb8b4';ctx.fillRect(x+11,y,2,2);}label(bat?'Bat':'Rat',x,y-27+float,'#ffddd2');ctx.fillStyle='#24342a';ctx.fillRect(x-15,y-23+float,30,4);ctx.fillStyle='#e77a76';ctx.fillRect(x-15,y-23+float,30*Math.max(0,m.hp/m.maxHp),4);if(m.type==='rat'&&Date.now()<m.chargeUntil){ctx.strokeStyle='#ffe19c';ctx.lineWidth=2;ctx.strokeRect(x-16,y-13,32,25);}}
 function drawProjectile(p){ellipse(p.x,p.y,7,7,'#ac83d8');ellipse(p.x-2,p.y-2,3,3,'#e8cffc');}
-function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;sendInput(now);for(const p of [...players.values(),...monsters.values(),...projectiles.values()]){const f=1-Math.exp(-dt*18);p.x+=(p.tx-p.x)*f;p.y+=(p.ty-p.y)*f;}
-const mine=players.get(myId);if(mine){const f=1-Math.exp(-dt*8);cameraX+=(mine.x-viewW/2-cameraX)*f;cameraY+=(mine.y-viewH/2-cameraY)*f;}cameraX=viewW>=WIDTH?(WIDTH-viewW)/2:Math.max(0,Math.min(WIDTH-viewW,cameraX));cameraY=viewH>=HEIGHT?(HEIGHT-viewH)/2:Math.max(0,Math.min(HEIGHT-viewH,cameraY));ctx.clearRect(0,0,viewW,viewH);ctx.fillStyle='#162d25';ctx.fillRect(0,0,viewW,viewH);ctx.save();ctx.translate(-Math.round(cameraX),-Math.round(cameraY));const left=Math.max(0,Math.floor(cameraX/TILE)-1),right=Math.min(COLS,Math.ceil((cameraX+viewW)/TILE)+1),top=Math.max(0,Math.floor(cameraY/TILE)-1),bottom=Math.min(ROWS,Math.ceil((cameraY+viewH)/TILE)+1);for(let y=top;y<bottom;y++)for(let x=left;x<right;x++)drawTile(x,y);const actors=[...players.values()].map(p=>({y:p.y,draw:()=>drawPlayer(p,now)})).concat([...monsters.values()].filter(m=>m.alive).map(m=>({y:m.y,draw:()=>drawMonster(m,now)})));actors.sort((a,b)=>a.y-b.y).forEach(a=>a.draw());for(const b of projectiles.values())drawProjectile(b);ctx.restore();if(now-lastSaved>1000){lastSaved=now;persist();}requestAnimationFrame(frame);}
+function frame(now){const dt=Math.min((now-last)/1000,.05);last=now;sendInput(now);for(const p of [...players.values(),...monsters.values(),...projectiles.values()]){const f=1-Math.exp(-dt*55);p.x+=(p.tx-p.x)*f;p.y+=(p.ty-p.y)*f;}
+const mine=players.get(myId);if(mine){const f=1-Math.exp(-dt*24);cameraX+=(mine.x-viewW/2-cameraX)*f;cameraY+=(mine.y-viewH/2-cameraY)*f;}cameraX=viewW>=WIDTH?(WIDTH-viewW)/2:Math.max(0,Math.min(WIDTH-viewW,cameraX));cameraY=viewH>=HEIGHT?(HEIGHT-viewH)/2:Math.max(0,Math.min(HEIGHT-viewH,cameraY));ctx.clearRect(0,0,viewW,viewH);ctx.fillStyle='#162d25';ctx.fillRect(0,0,viewW,viewH);ctx.save();ctx.translate(-Math.round(cameraX),-Math.round(cameraY));const left=Math.max(0,Math.floor(cameraX/TILE)-1),right=Math.min(COLS,Math.ceil((cameraX+viewW)/TILE)+1),top=Math.max(0,Math.floor(cameraY/TILE)-1),bottom=Math.min(ROWS,Math.ceil((cameraY+viewH)/TILE)+1);for(let y=top;y<bottom;y++)for(let x=left;x<right;x++)drawTile(x,y);const actors=[...players.values()].map(p=>({y:p.y,draw:()=>drawPlayer(p,now)})).concat([...monsters.values()].filter(m=>m.alive).map(m=>({y:m.y,draw:()=>drawMonster(m,now)})));actors.sort((a,b)=>a.y-b.y).forEach(a=>a.draw());for(const b of projectiles.values())drawProjectile(b);ctx.restore();if(now-lastSaved>1000){lastSaved=now;persist();}requestAnimationFrame(frame);}
 connect();requestAnimationFrame(frame);
 })();

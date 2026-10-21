@@ -16,26 +16,56 @@ function tileAt(x,y){if(x<0||y<0||x>=COLS||y>=ROWS)return'wall';const pond=((x-4
 function collides(x,y,r=10){for(const cx of[x-r,x+r])for(const cy of[y-r,y+r])if(tileAt(Math.floor(cx/TILE),Math.floor(cy/TILE))!=='grass')return true;return false;}
 function spawn(){for(let i=0;i<150;i++){const x=(12+Math.floor(Math.random()*7))*TILE+16,y=(15+Math.floor(Math.random()*7))*TILE+16;if(!collides(x,y))return{x,y};}return{x:496,y:592};}
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
-const maxHP=level=>5+(level-1)*1.5;
-const attackDamage=level=>1+(level-1)*0.18;
+const STAT_NAMES=['STR','AGI','VIT','INT','DEX','LUK'];
+const statCost=n=>1+Math.floor(n/10); // 1-10 cost 1; 11-20 cost 2, ... 41-50 cost 5
+function spentStats(stats){return STAT_NAMES.reduce((sum,key)=>{let n=stats[key]||0;for(let i=0;i<n;i++)sum+=statCost(i);return sum;},0);}
+const totalPoints=level=>(level-1)*5;
+const maxHP=p=>5+(p.level-1)*1.5+p.stats.VIT*2;
+const slashCooldown=p=>Math.max(135,400-p.stats.AGI*5);
+const hitRating=p=>4+p.stats.DEX*2;
+const critChance=p=>Math.min(.55,.05+p.stats.LUK*.01);
+const critMultiplier=p=>1.5+p.stats.LUK*.025;
+const attackDamage=p=>1+(p.level-1)*0.18+p.stats.STR*.35;
 const expNeeded=level=>Math.round(10+level*6+level*level*1.3);
 function cleanName(n){return typeof n==='string'?(n.replace(/[\x00-\x1f\x7f<>]/g,'').trim().slice(0,18)||'Adventurer'):'Adventurer';}
 function broadcast(o){const s=JSON.stringify(o);for(const p of players.values())if(p.ws.readyState===WebSocket.OPEN)p.ws.send(s);}
-function playerView(p){return{id:p.id,x:+p.x.toFixed(1),y:+p.y.toFixed(1),dir:p.dir,color:p.color,name:p.name,level:p.level,exp:p.exp,hp:+p.hp.toFixed(2),maxHp:maxHP(p.level),attacking:p.attacking,attackAt:p.attackAt,jumpAt:p.jumpAt,invulnerableUntil:p.invulnerableUntil};}
+function playerView(p){return{id:p.id,x:+p.x.toFixed(1),y:+p.y.toFixed(1),dir:p.dir,color:p.color,name:p.name,level:p.level,exp:p.exp,hp:+p.hp.toFixed(2),maxHp:maxHP(p),stats:p.stats,statPoints:totalPoints(p.level)-spentStats(p.stats),hitRating:hitRating(p),magicAttack:1+p.stats.INT*.35,attacking:p.attacking,attackAt:p.attackAt,attackAngle:p.attackAngle,jumpAt:p.jumpAt,invulnerableUntil:p.invulnerableUntil};}
 function monsterView(m){return{id:m.id,type:m.type,x:+m.x.toFixed(1),y:+m.y.toFixed(1),hp:+m.hp.toFixed(2),maxHp:m.maxHp,dir:m.dir,attackAt:m.attackAt,chargeUntil:m.chargeUntil,alive:m.alive};}
 const server=http.createServer((req,res)=>{let pathname;try{pathname=decodeURIComponent(new URL(req.url,'http://localhost').pathname);}catch{res.writeHead(400);return res.end('Bad request');}const target=path.resolve(ROOT,'.'+(pathname==='/'?'/index.html':pathname));if(target!==ROOT&&!target.startsWith(ROOT+path.sep)){res.writeHead(403);return res.end('Forbidden');}fs.readFile(target,(err,data)=>{if(err){res.writeHead(404);return res.end('Not found');}const ext=path.extname(target);res.writeHead(200,{'Content-Type':{'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8'}[ext]||'application/octet-stream','Cache-Control':'no-store, max-age=0','Pragma':'no-cache','Expires':'0','X-Content-Type-Options':'nosniff'});res.end(data);});});
 function addMonster(type,index){const cx=type==='rat'?10+(index*9)%37:17+(index*11)%35,cy=type==='rat'?8+(index*7)%24:7+(index*9)%26;let point=null;for(let j=0;j<90;j++){const x=clamp(cx+(j%11)-5,2,COLS-3)*TILE+16,y=clamp(cy+Math.floor(j/11)-4,2,ROWS-3)*TILE+16;if(!collides(x,y,12)&&Math.hypot(x-496,y-592)>135){point={x,y};break;}}if(!point)point=spawn();const id=type+'-'+index;monsters.set(id,{id,type,x:point.x,y:point.y,homeX:point.x,homeY:point.y,dir:'down',hp:type==='rat'?3:2.5,maxHp:type==='rat'?3:2.5,alive:true,respawnAt:0,nextAttack:0,attackAt:0,chargeUntil:0,vx:0,vy:0,wander:Math.random()*6,hitCooldown:new Map()});}
 for(let i=0;i<10;i++){addMonster('rat',i);addMonster('bat',i);}
-function applyDamage(p,amount,now){if(p.hp<=0||now<p.invulnerableUntil)return;p.hp=Math.max(0,Math.round((p.hp-amount)*100)/100);p.invulnerableUntil=now+650;if(p.hp<=0){const at=spawn();p.x=at.x;p.y=at.y;p.hp=maxHP(p.level);p.invulnerableUntil=now+1800;broadcast({type:'message',text:`${p.name} was knocked out and respawned!`});}}
-function awardExp(p,amount){if(p.level===MAX_LEVEL)return;p.exp+=amount;while(p.level<MAX_LEVEL&&p.exp>=expNeeded(p.level)){p.exp-=expNeeded(p.level);p.level++;p.hp=Math.min(maxHP(p.level),p.hp+1.5);broadcast({type:'message',text:`${p.name} reached level ${p.level}!`});}if(p.level===MAX_LEVEL)p.exp=0;}
-function performSlash(p,now){if(now-p.lastSlash<400||p.hp<=0)return;p.lastSlash=now;p.attacking=true;p.attackAt=now;const d={up:[0,-1],down:[0,1],left:[-1,0],right:[1,0]}[p.dir];for(const m of monsters.values()){if(!m.alive)continue;const dx=m.x-p.x,dy=m.y-p.y,forward=dx*d[0]+dy*d[1],side=Math.abs(dx*d[1]-dy*d[0]);if(forward>0&&forward<56&&side<29){m.hp=Math.max(0,m.hp-attackDamage(p.level));if(m.hp<=0){m.alive=false;m.respawnAt=now+6000;awardExp(p,m.type==='rat'?6:8);broadcast({type:'message',text:`${p.name} defeated a ${m.type} (+${m.type==='rat'?6:8} EXP)`});}}}}
+function applyDamage(p,amount,now){if(p.hp<=0||now<p.invulnerableUntil)return;p.hp=Math.max(0,Math.round((p.hp-amount)*100)/100);p.invulnerableUntil=now+650;if(p.hp<=0){const at=spawn();p.x=at.x;p.y=at.y;p.hp=maxHP(p);p.invulnerableUntil=now+1800;broadcast({type:'message',text:`${p.name} was knocked out and respawned!`});}}
+function awardExp(p,amount){if(p.level===MAX_LEVEL)return;p.exp+=amount;while(p.level<MAX_LEVEL&&p.exp>=expNeeded(p.level)){p.exp-=expNeeded(p.level);p.level++;p.hp=Math.min(maxHP(p),p.hp+1.5);broadcast({type:'message',text:`${p.name} reached level ${p.level}!`});}if(p.level===MAX_LEVEL)p.exp=0;}
+function performSlash(p,now,angle){if(now-p.lastSlash<slashCooldown(p)||p.hp<=0)return false;
+p.lastSlash=now;p.attacking=true;p.attackAt=now;p.attackAngle=angle;
+const ux=Math.cos(angle),uy=Math.sin(angle);
+for(const m of monsters.values()){if(!m.alive)continue;
+ const dx=m.x-p.x,dy=m.y-p.y,forward=dx*ux+dy*uy,side=Math.abs(dx*uy-dy*ux);
+ if(forward>0&&forward<56&&side<29){
+  // A high hit requirement can cause misses. DEX raises accuracy.
+  const requirement=m.type==='bat'?12:6;
+  const chance=Math.min(.98,hitRating(p)>=requirement?.95:.55+hitRating(p)/requirement*.35);
+  if(Math.random()>chance){if(p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Miss! Increase DEX to improve accuracy.'}));continue;}
+  const crit=Math.random()<critChance(p),damage=attackDamage(p)*(crit?critMultiplier(p):1);
+  m.hp=Math.max(0,m.hp-damage);
+  if(crit&&p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Critical hit!'}));
+  if(m.hp<=0){m.alive=false;m.respawnAt=now+6000;awardExp(p,m.type==='rat'?6:8);broadcast({type:'message',text:`${p.name} defeated a ${m.type} (+${m.type==='rat'?6:8} EXP)`});}
+ }
+}
+return true;
+}
 const wss=new WebSocketServer({server,maxPayload:4096});
-wss.on('connection',ws=>{const id=crypto.randomUUID(),point=spawn(),now=Date.now();const p={id,ws,x:point.x,y:point.y,dir:'down',color:Math.floor(Math.random()*6),name:'Adventurer',level:1,exp:0,hp:5,inputX:0,inputY:0,lastInput:now,lastSlash:0,attacking:false,attackAt:0,jumpAt:0,lastJump:0,invulnerableUntil:0,initialized:false};players.set(id,p);
+wss.on('connection',ws=>{const id=crypto.randomUUID(),point=spawn(),now=Date.now();const p={id,ws,x:point.x,y:point.y,dir:'down',color:Math.floor(Math.random()*6),name:'Adventurer',level:1,exp:0,hp:5,inputX:0,inputY:0,lastInput:now,lastSlash:0,attacking:false,attackAt:0,jumpAt:0,lastJump:0,invulnerableUntil:0,attackAngle:Math.PI/2,stats:Object.fromEntries(STAT_NAMES.map(k=>[k,0])),initialized:false};players.set(id,p);
 ws.send(JSON.stringify({type:'welcome',version:GAME_VERSION,id,world:{cols:COLS,rows:ROWS,tile:TILE},players:[...players.values()].map(playerView),monsters:[...monsters.values()].map(monsterView),maxLevel:MAX_LEVEL}));
 ws.on('message',raw=>{let msg;try{msg=JSON.parse(raw.toString());}catch{return;}if(!msg||typeof msg!=='object')return;
-if(msg.type==='init'&&!p.initialized){p.initialized=true;const data=msg.save||{};p.name=cleanName(data.name);const level=Number(data.level);p.level=Number.isInteger(level)?clamp(level,1,MAX_LEVEL):1;const exp=Number(data.exp);p.exp=p.level===MAX_LEVEL?0:clamp(Number.isFinite(exp)?exp:0,0,expNeeded(p.level)-1);const hp=Number(data.hp);p.hp=Number.isFinite(hp)?clamp(hp,0.5,maxHP(p.level)):maxHP(p.level);const x=Number(data.x),y=Number(data.y);if(Number.isFinite(x)&&Number.isFinite(y)&&!collides(x,y)&&x>10&&y>10){p.x=x;p.y=y;}broadcast({type:'join',player:playerView(p)});return;}
+if(msg.type==='init'&&!p.initialized){p.initialized=true;const data=msg.save||{};p.name=cleanName(data.name);const level=Number(data.level);p.level=Number.isInteger(level)?clamp(level,1,MAX_LEVEL):1;const exp=Number(data.exp);p.exp=p.level===MAX_LEVEL?0:clamp(Number.isFinite(exp)?exp:0,0,expNeeded(p.level)-1);const hp=Number(data.hp);// Reject invalid allocations and saves claiming more stat points than the level earned.
+ const savedStats=data.stats||{};
+ const candidate=Object.fromEntries(STAT_NAMES.map(k=>[k,Number.isInteger(savedStats[k])?clamp(savedStats[k],0,50):0]));
+ if(spentStats(candidate)<=totalPoints(p.level))p.stats=candidate;
+ p.hp=Number.isFinite(hp)?clamp(hp,0.5,maxHP(p)):maxHP(p);const x=Number(data.x),y=Number(data.y);if(Number.isFinite(x)&&Number.isFinite(y)&&!collides(x,y)&&x>10&&y>10){p.x=x;p.y=y;}broadcast({type:'join',player:playerView(p)});return;}
 if(!p.initialized)return;
 if(msg.type==='name'){p.name=cleanName(msg.name);broadcast({type:'join',player:playerView(p)});}
+else if(msg.type==='stat'){const key=String(msg.stat||'').toUpperCase();if(STAT_NAMES.includes(key)&&p.stats[key]<50){const cost=statCost(p.stats[key]);if(totalPoints(p.level)-spentStats(p.stats)>=cost){const oldMax=maxHP(p);p.stats[key]++;if(key==='VIT')p.hp+=maxHP(p)-oldMax;}}}
 else if(msg.type==='input'){const ix=Number(msg.x),iy=Number(msg.y);if(!Number.isFinite(ix)||!Number.isFinite(iy))return;p.inputX=clamp(ix,-1,1);p.inputY=clamp(iy,-1,1);const length=Math.hypot(p.inputX,p.inputY);if(length>1){p.inputX/=length;p.inputY/=length;}p.lastInput=Date.now();}
 else if(msg.type==='jump'){
   const now=Date.now();const ok=now-p.lastJump>650;
@@ -43,8 +73,11 @@ else if(msg.type==='jump'){
   if(ws.readyState===1)ws.send(JSON.stringify({type:'action_ack',action:'jump',ok,reason:ok?'':'cooldown'}));
 }
 else if(msg.type==='slash'){
-  const now=Date.now();const ok=now-p.lastSlash>=400&&p.hp>0;
-  if(ok)performSlash(p,now);
+  const now=Date.now();const ok=now-p.lastSlash>=slashCooldown(p)&&p.hp>0;
+  const angle=Number(msg.angle);
+  if(ok){const a=Number.isFinite(angle)?angle:Math.PI/2;p.attackAngle=Math.atan2(Math.sin(a),Math.cos(a));
+  p.dir=Math.abs(Math.cos(a))>Math.abs(Math.sin(a))?(Math.cos(a)>0?'right':'left'):(Math.sin(a)>0?'down':'up');
+  performSlash(p,now,p.attackAngle);}
   if(ws.readyState===1)ws.send(JSON.stringify({type:'action_ack',action:'slash',ok,reason:ok?'':p.hp<=0?'no HP':'cooldown'}));
 }
 });ws.on('close',()=>{players.delete(id);broadcast({type:'leave',id});});ws.on('error',()=>{});
