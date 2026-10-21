@@ -38,8 +38,8 @@ const server=http.createServer((req,res)=>{let pathname;try{pathname=decodeURICo
 function addMonster(type,index){const cx=type==='rat'?10+(index*9)%37:17+(index*11)%35,cy=type==='rat'?8+(index*7)%24:7+(index*9)%26;let point=null;for(let j=0;j<90;j++){const x=clamp(cx+(j%11)-5,2,COLS-3)*TILE+16,y=clamp(cy+Math.floor(j/11)-4,2,ROWS-3)*TILE+16;if(!collides(x,y,12)&&Math.hypot(x-496,y-592)>135){point={x,y};break;}}if(!point)point=spawn();const id=type+'-'+index;monsters.set(id,{id,type,x:point.x,y:point.y,homeX:point.x,homeY:point.y,dir:'down',hp:type==='rat'?3:2.5,maxHp:type==='rat'?3:2.5,alive:true,respawnAt:0,nextAttack:0,attackAt:0,chargeUntil:0,vx:0,vy:0,wander:Math.random()*6,hitCooldown:new Map(),knockX:0,knockY:0,stunnedUntil:0});}
 for(let i=0;i<10;i++){addMonster('rat',i);addMonster('bat',i);}
 function knock(entity,vx,vy){entity.knockX=(entity.knockX||0)+vx;entity.knockY=(entity.knockY||0)+vy;}
-function showDamage(x,y,amount,kind,now){broadcast({type:'damage_fx',x:+x.toFixed(1),y:+y.toFixed(1),amount:+amount.toFixed(1),kind,at:now});}
-function applyDamage(p,amount,now,sourceX=p.x,sourceY=p.y){if(p.hp<=0||now<p.invulnerableUntil||(p.leapAt&&now-p.leapAt<LEAP_DURATION))return;p.hp=Math.max(0,Math.round((p.hp-amount)*100)/100);p.invulnerableUntil=now+650;const a=Math.atan2(p.y-sourceY,p.x-sourceX);knock(p,Math.cos(a)*230,Math.sin(a)*230);showDamage(p.x,p.y,amount,'player',now);if(p.hp<=0){const at=spawn();p.x=at.x;p.y=at.y;p.hp=maxHP(p);p.invulnerableUntil=now+1800;broadcast({type:'message',text:`${p.name} was knocked out and respawned!`});}}
+function showDamage(x,y,amount,kind,now,angle=null){broadcast({type:'damage_fx',x:+x.toFixed(1),y:+y.toFixed(1),amount:+amount.toFixed(1),kind,at:now,angle:Number.isFinite(angle)?+angle.toFixed(3):null});}
+function applyDamage(p,amount,now,sourceX=p.x,sourceY=p.y){if(p.hp<=0||now<p.invulnerableUntil||(p.leapAt&&now-p.leapAt<LEAP_DURATION))return;p.hp=Math.max(0,Math.round((p.hp-amount)*100)/100);p.invulnerableUntil=now+650;const a=Math.atan2(p.y-sourceY,p.x-sourceX);knock(p,Math.cos(a)*230,Math.sin(a)*230);showDamage(p.x,p.y,amount,'player',now,a);if(p.hp<=0){const at=spawn();p.x=at.x;p.y=at.y;p.hp=maxHP(p);p.invulnerableUntil=now+1800;broadcast({type:'message',text:`${p.name} was knocked out and respawned!`});}}
 function awardExp(p,amount){if(p.level===MAX_LEVEL)return;p.exp+=amount;while(p.level<MAX_LEVEL&&p.exp>=expNeeded(p.level)){p.exp-=expNeeded(p.level);p.level++;p.hp=Math.min(maxHP(p),p.hp+1.5);broadcast({type:'message',text:`${p.name} reached level ${p.level}!`});}if(p.level===MAX_LEVEL)p.exp=0;}
 function performSlash(p,now,angle){if(now-p.lastSlash<slashCooldown(p)||p.hp<=0||(p.spinAt&&now-p.spinAt<SPIN_DURATION))return false;
 p.lastSlash=now;p.attacking=true;p.attackAt=now;p.attackAngle=angle;
@@ -50,9 +50,9 @@ for(const m of monsters.values()){if(!m.alive)continue;
   // A high hit requirement can cause misses. DEX raises accuracy.
   const requirement=m.type==='bat'?12:6;
   const chance=Math.min(.98,hitRating(p)>=requirement?.95:.55+hitRating(p)/requirement*.35);
-  if(Math.random()>chance){showDamage(m.x,m.y,0,'miss',now);if(p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Miss! Increase DEX to improve accuracy.'}));continue;}
+  if(Math.random()>chance){showDamage(m.x,m.y,0,'miss',now,angle);if(p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Miss! Increase DEX to improve accuracy.'}));continue;}
   const crit=Math.random()<critChance(p),damage=attackDamage(p)*(crit?critMultiplier(p):1);
-  m.hp=Math.max(0,m.hp-damage);knock(m,ux*270,uy*270);showDamage(m.x,m.y,damage,crit?'crit':'monster',now);
+  m.hp=Math.max(0,m.hp-damage);knock(m,ux*270,uy*270);showDamage(m.x,m.y,damage,crit?'crit':'monster',now,angle);
   if(crit&&p.ws.readyState===1)p.ws.send(JSON.stringify({type:'message',text:'Critical hit!'}));
   if(m.hp<=0){m.alive=false;m.respawnAt=now+6000;awardExp(p,m.type==='rat'?6:8);broadcast({type:'message',text:`${p.name} defeated a ${m.type} (+${m.type==='rat'?6:8} EXP)`});}
  }
@@ -77,6 +77,11 @@ else if(msg.type==='reset_stats'){
  p.stats=Object.fromEntries(STAT_NAMES.map(k=>[k,0]));
  p.hp=Math.min(maxHP(p),Math.max(.5,oldHp*maxHP(p)/Math.max(1,oldMax)));
  if(ws.readyState===1)ws.send(JSON.stringify({type:'message',text:'Stats reset. All spent points returned.'}));
+}
+else if(msg.type==='debug_level'){
+ if(p.level>=MAX_LEVEL){if(ws.readyState===1)ws.send(JSON.stringify({type:'message',text:'Already at max level.'}));return;}
+ p.level++;p.exp=0;p.hp=maxHP(p);
+ broadcast({type:'message',text:`${p.name} debug-leveled to ${p.level}!`});
 }
 else if(msg.type==='chat'){
  const now=Date.now();if(now-p.chatAt<700)return;
@@ -136,10 +141,10 @@ for(const p of players.values()){if(!p.initialized)continue;if(now-p.lastInput>1
    if(!m.alive||Math.hypot(m.x-p.x,m.y-p.y)>92)continue;
    const requirement=m.type==='bat'?12:6;
    const chance=Math.min(.98,hitRating(p)>=requirement?.95:.55+hitRating(p)/requirement*.35);
-   if(Math.random()>chance){showDamage(m.x,m.y,0,'miss',now);continue;}
+   if(Math.random()>chance){showDamage(m.x,m.y,0,'miss',now,Math.atan2(m.y-p.y,m.x-p.x));continue;}
    const critical=Math.random()<critChance(p),damage=attackDamage(p)*.64*(critical?critMultiplier(p):1);
    const angle=Math.atan2(m.y-p.y,m.x-p.x);m.hp=Math.max(0,m.hp-damage);
-   knock(m,Math.cos(angle)*190,Math.sin(angle)*190);showDamage(m.x,m.y,damage,critical?'crit':'monster',now);
+   knock(m,Math.cos(angle)*190,Math.sin(angle)*190);showDamage(m.x,m.y,damage,critical?'crit':'monster',now,angle);
    if(m.hp<=0){m.alive=false;m.respawnAt=now+6000;awardExp(p,m.type==='rat'?6:8);broadcast({type:'message',text:`${p.name} defeated a ${m.type} (+${m.type==='rat'?6:8} EXP)`});}
   }
  }

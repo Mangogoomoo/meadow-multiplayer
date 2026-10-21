@@ -128,3 +128,13 @@ Upload `server.js` at the GitHub repository root and `public/game.js` and `publi
 
 ### Verification
 Both JavaScript files passed Node syntax checks. A live multiplayer integration test was not possible in this environment because the `ws` package was not locally available.
+
+## HUD polish and effects update
+- Added a **Minimap** in the top-right corner and a **Debug Level Up** button below it.
+- Added a bottom-right **?** help button that shows the controls guide on hover/focus.
+- Improved the Stats panel scrollbar styling.
+- Added action-bar art for **Whirlwind** and **Earthbreaker** and centered the action-bar text.
+- Added more Earthbreaker impact particles and dust.
+- Added directional hit particles / blood splatter when enemies are hit and impact particles when players are damaged.
+- Added rotating **stun** stars above stunned enemies.
+- Added a server-side `debug_level` message used by the Debug Level Up button.
