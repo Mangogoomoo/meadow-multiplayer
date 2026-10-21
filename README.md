@@ -138,3 +138,9 @@ Both JavaScript files passed Node syntax checks. A live multiplayer integration 
 - Added directional hit particles / blood splatter when enemies are hit and impact particles when players are damaged.
 - Added rotating **stun** stars above stunned enemies.
 - Added a server-side `debug_level` message used by the Debug Level Up button.
+
+
+## Level 99 and notifications update
+- Max player level is now **99**, and all six stats cap at **99**.
+- Stat point costs now step up every **20** stat ranks, rather than every 10, to keep 99 reachable with five points per level. A single stat needs 295 points to max; level 99 provides 490 points total. You can max one stat with points left over, but not two.
+- Notifications now appear in a right-side stack below the minimap and debug level button, rather than overlapping them.

@@ -19,7 +19,7 @@ button,input{font:inherit}
 .fill{height:100%;width:100%;background:#eb6c72;transition:width .18s}.expfill{background:#76b9ff}.energyfill{background:#e8bf58}
 .muted{color:#b9cbbb;font-size:12px}
 .nameRow{display:flex;gap:7px;margin-top:10px}.nameRow input{background:#203d31;border:1px solid #8eb29977;border-radius:7px;color:white;min-width:0;flex:1;padding:7px 8px}.nameRow button{background:#387c58;border:0;border-radius:7px;color:white;font-weight:700;padding:7px 10px;cursor:pointer}
-.notices{position:fixed;top:18px;right:18px;display:grid;gap:6px;pointer-events:none;z-index:12}.notice{padding:8px 12px;border-radius:10px;background:#10251ee9;color:#e4f4e4;border:1px solid #7bb48b66;font-size:13px}
+.notices{position:fixed;top:253px;right:16px;width:224px;display:grid;gap:6px;pointer-events:none;z-index:12}.notice{padding:8px 12px;border-radius:10px;background:#10251ee9;color:#e4f4e4;border:1px solid #7bb48b66;font-size:13px}
 .top-right{position:fixed;top:16px;right:16px;display:flex;flex-direction:column;gap:10px;z-index:7}
 .minimapWrap{background:#10251eea;border:1px solid #7bb48b66;border-radius:14px;padding:10px 10px 8px;box-shadow:0 8px 28px #0007;width:224px}
 .minimapTitle{font-size:12px;font-weight:800;color:#dbead9;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
@@ -51,7 +51,7 @@ button,input{font:inherit}
 .helpPopup{position:absolute;right:0;bottom:52px;min-width:310px;max-width:min(420px,calc(100vw - 26px));padding:12px 14px;border-radius:12px;background:#10251ef0;border:1px solid #7bb48b66;box-shadow:0 8px 28px #0007;font-size:13px;color:#e1efdf;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .15s,transform .15s}
 .controlHelp:hover .helpPopup,.controlHelp:focus-within .helpPopup{opacity:1;transform:translateY(0)}
 @media(max-width:920px){.chat{bottom:100px}.actionbar{bottom:10px}.controlHelp{bottom:92px}}
-@media(max-width:700px){.hud{left:8px;top:8px;width:225px;padding:9px 11px}.top-right{top:8px;right:8px}.minimapWrap{width:176px;padding:8px}.minimapWrap #minimap{width:156px;height:108px}.chat{left:8px;bottom:92px;width:220px}.chat-messages{height:85px}.actionbar{gap:3px}.skill-slot{width:54px;height:64px}.slot-art{width:30px;height:24px}.slot-name{font-size:8px}.controlHelp{right:8px}}
+@media(max-width:700px){.hud{left:8px;top:8px;width:225px;padding:9px 11px}.top-right{top:8px;right:8px}.notices{top:211px;right:8px;width:176px}.minimapWrap{width:176px;padding:8px}.minimapWrap #minimap{width:156px;height:108px}.chat{left:8px;bottom:92px;width:220px}.chat-messages{height:85px}.actionbar{gap:3px}.skill-slot{width:54px;height:64px}.slot-art{width:30px;height:24px}.slot-name{font-size:8px}.controlHelp{right:8px}}
 </style>
 </head>
 <body>
@@ -74,7 +74,7 @@ button,input{font:inherit}
     <div id="stat-rows"></div>
     <div class="meta" style="margin-top:10px;font-weight:bold">Combat attributes</div>
     <div id="combat-details" class="combat-details"></div>
-    <div class="stat-note">Earn 5 points per level. Each stat maxes at 50. Costs rise every 10 stat levels.</div>
+    <div class="stat-note">Earn 5 points per level. Each stat maxes at 99. Costs rise every 20 stat levels.</div>
     <button class="stat-reset" id="reset-stats" type="button">Reset stats (refund points)</button>
   </section>
   <button class="delete-character" id="delete-character" type="button">Delete character</button>

@@ -9,7 +9,7 @@ const GAME_VERSION=crypto.createHash('sha256')
   .update(fs.readFileSync(path.join(ROOT,'game.js')))
   .update(fs.readFileSync(path.join(ROOT,'index.html')))
   .digest('hex').slice(0,16);
-const TILE=32,COLS=60,ROWS=40,SPEED=175,RUN_SPEED=285,MAX_ENERGY=100,MAX_LEVEL=50;
+const TILE=32,COLS=60,ROWS=40,SPEED=175,RUN_SPEED=285,MAX_ENERGY=100,MAX_LEVEL=99;
 const players=new Map(),monsters=new Map(),projectiles=new Map();
 const chatHistory=[];
 const SPIN_DURATION=3000,SPIN_COOLDOWN=11000,SPIN_TICK=220;
@@ -20,7 +20,7 @@ function collides(x,y,r=10){for(const cx of[x-r,x+r])for(const cy of[y-r,y+r])if
 function spawn(){for(let i=0;i<150;i++){const x=(12+Math.floor(Math.random()*7))*TILE+16,y=(15+Math.floor(Math.random()*7))*TILE+16;if(!collides(x,y))return{x,y};}return{x:496,y:592};}
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
 const STAT_NAMES=['STR','AGI','VIT','INT','DEX','LUK'];
-const statCost=n=>1+Math.floor(n/10); // 1-10 cost 1; 11-20 cost 2, ... 41-50 cost 5
+const statCost=n=>1+Math.floor(n/20); // 1-20 cost 1; 21-40 cost 2; ... 81-99 cost 5
 function spentStats(stats){return STAT_NAMES.reduce((sum,key)=>{let n=stats[key]||0;for(let i=0;i<n;i++)sum+=statCost(i);return sum;},0);}
 const totalPoints=level=>(level-1)*5;
 const maxHP=p=>5+(p.level-1)*1.5+p.stats.VIT*2;
@@ -65,12 +65,12 @@ ws.send(JSON.stringify({type:'welcome',version:GAME_VERSION,id,world:{cols:COLS,
 ws.on('message',raw=>{let msg;try{msg=JSON.parse(raw.toString());}catch{return;}if(!msg||typeof msg!=='object')return;
 if(msg.type==='init'&&!p.initialized){p.initialized=true;const data=msg.save||{};p.name=cleanName(data.name);const level=Number(data.level);p.level=Number.isInteger(level)?clamp(level,1,MAX_LEVEL):1;const exp=Number(data.exp);p.exp=p.level===MAX_LEVEL?0:clamp(Number.isFinite(exp)?exp:0,0,expNeeded(p.level)-1);const hp=Number(data.hp);// Reject invalid allocations and saves claiming more stat points than the level earned.
  const savedStats=data.stats||{};
- const candidate=Object.fromEntries(STAT_NAMES.map(k=>[k,Number.isInteger(savedStats[k])?clamp(savedStats[k],0,50):0]));
+ const candidate=Object.fromEntries(STAT_NAMES.map(k=>[k,Number.isInteger(savedStats[k])?clamp(savedStats[k],0,99):0]));
  if(spentStats(candidate)<=totalPoints(p.level))p.stats=candidate;
  p.hp=Number.isFinite(hp)?clamp(hp,0.5,maxHP(p)):maxHP(p);const x=Number(data.x),y=Number(data.y);if(Number.isFinite(x)&&Number.isFinite(y)&&!collides(x,y)&&x>10&&y>10){p.x=x;p.y=y;}broadcast({type:'join',player:playerView(p)});return;}
 if(!p.initialized)return;
 if(msg.type==='name'){p.name=cleanName(msg.name);broadcast({type:'join',player:playerView(p)});}
-else if(msg.type==='stat'){const statNow=Date.now();if(statNow-p.lastStatAt<65)return;p.lastStatAt=statNow;const key=String(msg.stat||'').toUpperCase();if(STAT_NAMES.includes(key)&&p.stats[key]<50){const cost=statCost(p.stats[key]);if(totalPoints(p.level)-spentStats(p.stats)>=cost){const oldMax=maxHP(p);p.stats[key]++;if(key==='VIT')p.hp+=maxHP(p)-oldMax;}}}
+else if(msg.type==='stat'){const statNow=Date.now();if(statNow-p.lastStatAt<65)return;p.lastStatAt=statNow;const key=String(msg.stat||'').toUpperCase();if(STAT_NAMES.includes(key)&&p.stats[key]<99){const cost=statCost(p.stats[key]);if(totalPoints(p.level)-spentStats(p.stats)>=cost){const oldMax=maxHP(p);p.stats[key]++;if(key==='VIT')p.hp+=maxHP(p)-oldMax;}}}
 else if(msg.type==='reset_stats'){
  if(spentStats(p.stats)===0)return;
  const oldMax=maxHP(p),oldHp=p.hp;
