@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meadow Multiplayer RPG</title>
+<style>
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#182d24;color:#fff;font-family:system-ui,Segoe UI,sans-serif}
+canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;touch-action:none}
+button,input{font:inherit}
+.hud{position:fixed;top:16px;left:16px;width:260px;background:#10251eea;border:1px solid #7bb48b66;border-radius:14px;padding:13px 16px;box-shadow:0 8px 28px #0007;z-index:6}
+.title{font-size:17px;font-weight:800}
+.meta{font-size:12px;color:#d0e4d0;margin:6px 0}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#efb45f;margin-right:6px}.dot.online{background:#74d991}
+.stats{display:flex;justify-content:space-between;gap:8px;font-size:13px;font-weight:700;margin:8px 0 4px}
+.bar{height:11px;border-radius:999px;overflow:hidden;background:#0008;border:1px solid #ffffff2f}
+.fill{height:100%;width:100%;background:#eb6c72;transition:width .18s}.expfill{background:#76b9ff}.energyfill{background:#e8bf58}
+.muted{color:#b9cbbb;font-size:12px}
+.nameRow{display:flex;gap:7px;margin-top:10px}.nameRow input{background:#203d31;border:1px solid #8eb29977;border-radius:7px;color:white;min-width:0;flex:1;padding:7px 8px}.nameRow button{background:#387c58;border:0;border-radius:7px;color:white;font-weight:700;padding:7px 10px;cursor:pointer}
+.notices{position:fixed;top:253px;right:16px;width:224px;display:grid;gap:6px;pointer-events:none;z-index:12}.notice{padding:8px 12px;border-radius:10px;background:#10251ee9;color:#e4f4e4;border:1px solid #7bb48b66;font-size:13px}
+.top-right{position:fixed;top:16px;right:16px;display:flex;flex-direction:column;gap:10px;z-index:7}
+.minimapWrap{background:#10251eea;border:1px solid #7bb48b66;border-radius:14px;padding:10px 10px 8px;box-shadow:0 8px 28px #0007;width:224px}
+.minimapTitle{font-size:12px;font-weight:800;color:#dbead9;margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+.minimapTitle span{opacity:.8;font-weight:600}
+#minimap{width:202px;height:138px;display:block;border-radius:10px;border:1px solid #95c09a44;background:#20362c}
+.debugButton{background:linear-gradient(180deg,#4977b7,#34588c);color:#fff;border:1px solid #b9d5ff55;border-radius:10px;padding:9px 12px;font-weight:800;cursor:pointer;box-shadow:0 4px 12px #0004}
+.debugButton:hover{filter:brightness(1.08)}
+.stat-toggle{margin-top:9px;width:100%;cursor:pointer;background:#356c4c;border:1px solid #a9d6af66;border-radius:8px;color:white;padding:8px;font-weight:700}
+.stat-panel{margin-top:8px;max-height:40vh;overflow-y:auto;padding-right:6px;scrollbar-width:thin;scrollbar-color:#7fb086 #0f241d}
+.stat-panel::-webkit-scrollbar,.chat-messages::-webkit-scrollbar{width:10px}
+.stat-panel::-webkit-scrollbar-track,.chat-messages::-webkit-scrollbar-track{background:#0f241d;border-radius:999px}
+.stat-panel::-webkit-scrollbar-thumb,.chat-messages::-webkit-scrollbar-thumb{background:linear-gradient(180deg,#8cc096,#4e7d5a);border:2px solid #0f241d;border-radius:999px}
+.stat-panel::-webkit-scrollbar-thumb:hover,.chat-messages::-webkit-scrollbar-thumb:hover{background:linear-gradient(180deg,#9dd4a7,#5b9268)}
+.stat-row{display:grid;grid-template-columns:35px 35px 1fr 38px;gap:5px;align-items:center;font-size:12px;margin:5px 0}.stat-row button{background:#397d55;border:0;border-radius:7px;color:white;padding:5px;cursor:pointer;font-weight:800}.stat-row button:disabled{opacity:.32;cursor:default}.stat-desc{font-size:11px;color:#b9cbbb}
+.combat-details{margin-top:10px;padding:8px;background:#0c211b;border-radius:9px;font-size:12px;display:grid;grid-template-columns:1fr auto;gap:5px 8px}.combat-details b{text-align:right;color:#d7f3b9}.stat-note{font-size:11px;color:#b9cbbb;margin-top:5px}
+.stat-reset,.delete-character{width:100%;margin-top:9px;padding:8px;border-radius:8px;border:1px solid #c99c7b88;background:#68483b;color:#fff;font-weight:700;cursor:pointer}.delete-character{background:#6a3037;border-color:#da878b88}
+.chat{position:fixed;bottom:18px;left:16px;width:min(345px,calc(100vw - 32px));background:#10251eea;border:1px solid #7bb48b66;border-radius:12px;overflow:hidden;display:flex;flex-direction:column;z-index:6;box-shadow:0 8px 28px #0007}.chat-title{background:#1b4334;padding:7px 10px;font-size:12px;font-weight:700}.chat-messages{height:146px;overflow-y:auto;display:flex;flex-direction:column;gap:5px;padding:9px;font-size:12px;overflow-wrap:anywhere;scrollbar-width:thin;scrollbar-color:#7fb086 #0f241d}.chat-messages b{color:#afe5a4}.chat-entry{display:flex;border-top:1px solid #ffffff22}.chat-entry input{min-width:0;flex:1;background:#183b2c;color:white;border:0;padding:10px;outline:none}.chat-entry button{background:#397d55;color:white;border:0;padding:0 13px;cursor:pointer}
+.actionbar{position:fixed;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;z-index:7}
+.skill-slot{height:74px;width:76px;position:relative;border:2px solid #8cb891;background:linear-gradient(180deg,#1d4634,#143426);color:white;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;padding:6px 4px 7px;box-shadow:0 8px 18px #0005;overflow:hidden}
+.skill-slot:disabled{cursor:default;opacity:.6}
+.skill-slot .slot-key{position:absolute;top:4px;left:6px;font-size:12px;color:#f8ecc0;font-weight:800;z-index:3}
+.slot-art{position:absolute;left:50%;top:11px;transform:translateX(-50%);width:42px;height:30px;z-index:1;opacity:.96}
+.slot-art.whirlwind{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1'%3E%3Cstop stop-color='%23fff8ba'/%3E%3Cstop offset='1' stop-color='%23f0d06a'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M8 24c16-18 38-15 46 0-9 15-30 17-44 5 17 3 24-4 27-10-9 4-18 3-29-2z' fill='url(%23g)' stroke='%23fffbe0' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M19 8l11 6M40 34l10 6' stroke='%23fff4bd' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.slot-art.earthbreaker{background:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 48'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop stop-color='%23d7f2ff'/%3E%3Cstop offset='1' stop-color='%2397d3ff'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cpath d='M33 2l7 16h-5l6 10-18 18 7-16h-6z' fill='url(%23g)' stroke='%23ffffff' stroke-width='2' stroke-linejoin='round'/%3E%3Cpath d='M9 39l12-5m5 8l8-6m6 6l13-6' stroke='%23c7a06b' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.skill-slot .slot-name{display:block;position:relative;z-index:2;font-size:10px;font-weight:800;line-height:1;text-align:center;width:100%}
+.skill-slot .slot-cooldown{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#000b;border-radius:8px;font-size:19px;font-weight:800;z-index:4}
+.controlHelp{position:fixed;right:16px;bottom:16px;z-index:8}
+.helpButton{width:42px;height:42px;border-radius:50%;border:1px solid #b2dbb755;background:linear-gradient(180deg,#2f6e4f,#24563e);color:#fff;font-weight:900;font-size:24px;display:grid;place-items:center;cursor:help;box-shadow:0 8px 18px #0005}
+.helpPopup{position:absolute;right:0;bottom:52px;min-width:310px;max-width:min(420px,calc(100vw - 26px));padding:12px 14px;border-radius:12px;background:#10251ef0;border:1px solid #7bb48b66;box-shadow:0 8px 28px #0007;font-size:13px;color:#e1efdf;opacity:0;transform:translateY(8px);pointer-events:none;transition:opacity .15s,transform .15s}
+.controlHelp:hover .helpPopup,.controlHelp:focus-within .helpPopup{opacity:1;transform:translateY(0)}
+@media(max-width:920px){.chat{bottom:100px}.actionbar{bottom:10px}.controlHelp{bottom:92px}}
+@media(max-width:700px){.hud{left:8px;top:8px;width:225px;padding:9px 11px}.top-right{top:8px;right:8px}.notices{top:211px;right:8px;width:176px}.minimapWrap{width:176px;padding:8px}.minimapWrap #minimap{width:156px;height:108px}.chat{left:8px;bottom:92px;width:220px}.chat-messages{height:85px}.actionbar{gap:3px}.skill-slot{width:54px;height:64px}.slot-art{width:30px;height:24px}.slot-name{font-size:8px}.controlHelp{right:8px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+
+<div class="hud">
+  <div class="title">🌿 Meadow Multiplayer</div>
+  <div class="meta"><span id="dot" class="dot"></span><span id="status">Connecting…</span> · <span id="count">0</span> online</div>
+  <div class="stats"><span id="level">Level 1</span><span id="hptext">5 / 5 HP</span></div>
+  <div class="bar"><div class="fill" id="hpbar"></div></div>
+  <div class="stats"><span>Experience</span><span id="exptext">0 / 17</span></div>
+  <div class="bar"><div class="fill expfill" id="expbar"></div></div>
+  <div class="stats"><span>Energy · Shift to run</span><span id="energytext">100 / 100 Energy</span></div>
+  <div class="bar"><div class="fill energyfill" id="energybar"></div></div>
+  <div class="nameRow"><input id="name" maxlength="18" placeholder="Your name" aria-label="Player name"><button id="rename">Rename</button></div>
+  <div class="muted" style="margin-top:7px">Progress auto-saved in this browser</div>
+  <button id="stat-toggle" class="stat-toggle" type="button">Stats ▾</button>
+  <section id="stat-panel" class="stat-panel" hidden>
+    <div id="stat-points" class="meta">Stat points: 0</div>
+    <div id="stat-rows"></div>
+    <div class="meta" style="margin-top:10px;font-weight:bold">Combat attributes</div>
+    <div id="combat-details" class="combat-details"></div>
+    <div class="stat-note">Earn 5 points per level. Each stat maxes at 99. Costs rise every 20 stat levels.</div>
+    <button class="stat-reset" id="reset-stats" type="button">Reset stats (refund points)</button>
+  </section>
+  <button class="delete-character" id="delete-character" type="button">Delete character</button>
+</div>
+
+<div class="top-right">
+  <section class="minimapWrap">
+    <div class="minimapTitle">Minimap <span id="minimap-status">World</span></div>
+    <canvas id="minimap" width="202" height="138"></canvas>
+  </section>
+  <button id="debug-level" class="debugButton" type="button">Debug Level Up</button>
+</div>
+
+<div id="notices" class="notices"></div>
+
+<section class="chat">
+  <div class="chat-title">World Chat</div>
+  <div id="chat-messages" class="chat-messages" aria-live="polite"></div>
+  <form id="chat-form" class="chat-entry">
+    <input id="chat-input" maxlength="160" autocomplete="off" placeholder="Message everyone..." aria-label="Chat message">
+    <button type="submit">Send</button>
+  </form>
+</section>
+
+<div id="actionbar" class="actionbar">
+  <button class="skill-slot" data-slot="1" title="Whirlwind — 3 second spin">
+    <span class="slot-key">1</span>
+    <span class="slot-art whirlwind" aria-hidden="true"></span>
+    <span class="slot-name">Whirlwind</span>
+    <span id="skill-cooldown" class="slot-cooldown" hidden></span>
+  </button>
+  <button class="skill-slot" data-slot="2" title="Earthbreaker — leap to cursor and stun enemies">
+    <span class="slot-key">2</span>
+    <span class="slot-art earthbreaker" aria-hidden="true"></span>
+    <span class="slot-name">Earthbreaker</span>
+    <span id="leap-cooldown" class="slot-cooldown" hidden></span>
+  </button>
+  <button class="skill-slot" data-slot="3" disabled><span class="slot-key">3</span><span class="slot-name">—</span></button>
+  <button class="skill-slot" data-slot="4" disabled><span class="slot-key">4</span><span class="slot-name">—</span></button>
+  <button class="skill-slot" data-slot="5" disabled><span class="slot-key">5</span><span class="slot-name">—</span></button>
+</div>
+
+<div class="controlHelp" tabindex="0">
+  <button class="helpButton" type="button" aria-label="Show controls">?</button>
+  <div class="helpPopup">Move: WASD / Arrows · Run: Left Shift · Jump: Space · Hold Left Click: Attack · 1: Whirlwind · 2: Earthbreaker · Enter: Chat · Monsters: Rat &amp; Bat</div>
+</div>
+
+<script>
+(function () {
+  const script = document.createElement('script');
+  // Art metadata and collision data must load before the original game client.
+  const files = ['world-data.js', 'art-data.js', 'game.js'];
+  function loadNext() {
+    if (!files.length) return;
+    const current = files.shift();
+    const node = document.createElement('script');
+    node.src = current + '?v=' + Date.now();
+    node.onload = loadNext;
+    node.onerror = function () {
+      document.getElementById('status').textContent = 'Game download failed (' + current + ') — reload the page';
+    };
+    document.body.appendChild(node);
+  }
+  loadNext();
+}());
+</script>
+</body>
+</html>
