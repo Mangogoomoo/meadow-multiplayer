@@ -37,8 +37,16 @@ if(msg.type==='init'&&!p.initialized){p.initialized=true;const data=msg.save||{}
 if(!p.initialized)return;
 if(msg.type==='name'){p.name=cleanName(msg.name);broadcast({type:'join',player:playerView(p)});}
 else if(msg.type==='input'){const ix=Number(msg.x),iy=Number(msg.y);if(!Number.isFinite(ix)||!Number.isFinite(iy))return;p.inputX=clamp(ix,-1,1);p.inputY=clamp(iy,-1,1);const length=Math.hypot(p.inputX,p.inputY);if(length>1){p.inputX/=length;p.inputY/=length;}p.lastInput=Date.now();}
-else if(msg.type==='jump'){if(Date.now()-p.lastJump>650){p.lastJump=Date.now();p.jumpAt=p.lastJump;}}
-else if(msg.type==='slash')performSlash(p,Date.now());
+else if(msg.type==='jump'){
+  const now=Date.now();const ok=now-p.lastJump>650;
+  if(ok){p.lastJump=now;p.jumpAt=now;}
+  if(ws.readyState===1)ws.send(JSON.stringify({type:'action_ack',action:'jump',ok,reason:ok?'':'cooldown'}));
+}
+else if(msg.type==='slash'){
+  const now=Date.now();const ok=now-p.lastSlash>=400&&p.hp>0;
+  if(ok)performSlash(p,now);
+  if(ws.readyState===1)ws.send(JSON.stringify({type:'action_ack',action:'slash',ok,reason:ok?'':p.hp<=0?'no HP':'cooldown'}));
+}
 });ws.on('close',()=>{players.delete(id);broadcast({type:'leave',id});});ws.on('error',()=>{});
 });
 let last=performance.now(),snapshot=0;

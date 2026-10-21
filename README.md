@@ -66,3 +66,12 @@ The map is deterministic (same trees/water on both sides). Collision and combat 
 - Browser code cannot literally invoke Ctrl+Shift+R. This is the practical equivalent for this project's JS/HTML files.
 - With an **InfinityFree** frontend, you still must upload the new `public/` files there. A new backend deployment cannot magically replace old client files on InfinityFree.
 - Keep `public/index.html` and `public/game.js` together on either host. No new dependencies are needed.
+
+
+## Online keyboard-action troubleshooting
+
+This version adds Jump/Sword buttons and an action-status display in the top-left HUD.
+Press Space/F or click the corresponding button. A checkmark confirms the WebSocket
+server received and accepted the action. If it stays on "sent…", check that the
+latest server.js was committed and deployed to Render. Both client and server files
+must be deployed together.

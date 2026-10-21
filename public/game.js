@@ -37,6 +37,10 @@ ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}if(m.type==='welc
 else if(m.type==='join')updatePlayer(m.player);
 else if(m.type==='state'){if(m.players.some(p=>p.id===myId))readyToSave=true;const ids=new Set();m.players.forEach(p=>{ids.add(p.id);updatePlayer(p);});for(const id of players.keys())if(!ids.has(id))players.delete(id);m.monsters.forEach(updateMonster);const shots=new Set();for(const b of m.projectiles){shots.add(b.id);const old=projectiles.get(b.id);if(old){old.tx=b.x;old.ty=b.y;}else projectiles.set(b.id,{...b,tx:b.x,ty:b.y});}for(const id of projectiles.keys())if(!shots.has(id))projectiles.delete(id);}
 else if(m.type==='leave')players.delete(m.id);
+else if(m.type==='action_ack'){
+  const action=m.action==='slash'?'Sword':'Jump';
+  ui('actionstatus').textContent=action+(m.ok?' ✓':' — '+(m.reason||'unavailable'));
+}
 else if(m.type==='message')notice(m.text);
 ui('count').textContent=players.size;updateHUD();};
 ws.onclose=()=>{persist();readyToSave=false;ui('status').textContent='Disconnected';ui('dot').classList.remove('online');myId=null;players.clear();monsters.clear();projectiles.clear();ui('count').textContent='0';setTimeout(connect,Math.min(1000*2**retries++,8000));};ws.onerror=()=>ws.close();}
@@ -47,7 +51,27 @@ function updateHUD(){const p=players.get(myId);if(!p)return;ui('level').textCont
 function notice(s){const el=document.createElement('div');el.className='notice';el.textContent=s;ui('notices').prepend(el);setTimeout(()=>el.remove(),3800);}
 const movement=new Set(['w','a','s','d','arrowup','arrowdown','arrowleft','arrowright']);
 function emit(type,payload={}){if(ws?.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type,...payload}));}
-addEventListener('keydown',e=>{if(document.activeElement===ui('name')){if(e.key==='Enter'){rename();ui('name').blur();}return;}const k=e.key.toLowerCase();if(movement.has(k)){e.preventDefault();keys.add(k);}else if(k===' '){e.preventDefault();if(!e.repeat)emit('jump');}else if(k==='f'){e.preventDefault();if(!e.repeat)emit('slash');}});
+// Use physical key codes as well as characters: works with different keyboard layouts.
+// Controls are disabled only while actively editing the name field.
+function handleAction(action){
+  if(!ws||ws.readyState!==WebSocket.OPEN){ui('actionstatus').textContent='Not connected';return;}
+  ui('actionstatus').textContent=(action==='slash'?'Sword':'Jump')+' sent…';
+  emit(action);
+}
+addEventListener('keydown',e=>{
+  if(document.activeElement===ui('name')){
+    if(e.key==='Enter'){rename();ui('name').blur();}
+    return;
+  }
+  const k=e.key.toLowerCase();
+  if(movement.has(k)){e.preventDefault();keys.add(k);return;}
+  if(e.code==='Space'||k===' '){e.preventDefault();if(!e.repeat)handleAction('jump');return;}
+  if(e.code==='KeyF'||k==='f'){e.preventDefault();if(!e.repeat)handleAction('slash');return;}
+});
+// Clicking the world returns focus from the name input to the game controls.
+canvas.addEventListener('pointerdown',()=>{if(document.activeElement===ui('name'))ui('name').blur();});
+ui('jumpbtn').addEventListener('click',()=>handleAction('jump'));
+ui('slashbtn').addEventListener('click',()=>handleAction('slash'));
 addEventListener('keyup',e=>{const k=e.key.toLowerCase();if(movement.has(k)){e.preventDefault();keys.delete(k);}});addEventListener('blur',()=>keys.clear());
 function rename(){const name=ui('name').value.trim().slice(0,18)||'Adventurer';ui('name').value=name;emit('name',{name});const p=players.get(myId);if(p)p.name=name;persist();}
 ui('rename').addEventListener('click',rename);
