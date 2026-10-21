@@ -6,6 +6,20 @@ const TILE=32,COLS=60,ROWS=40,WIDTH=COLS*TILE,HEIGHT=ROWS*TILE;
 // const SERVER_URL = 'https://meadow-multiplayer.onrender.com';
 const SERVER_URL=''; // Empty = connect to same host (works when the game is served by Render).
 const STORAGE_KEY='meadow-rpg-save-v1';
+const SERVER_VERSION_KEY='meadow-rpg-server-version-v1';
+function checkServerVersion(version) {
+  if (typeof version !== 'string' || !version) return false;
+  try {
+    const previous = sessionStorage.getItem(SERVER_VERSION_KEY);
+    sessionStorage.setItem(SERVER_VERSION_KEY, version);
+    if (previous && previous !== version) {
+      persist(); // Save before reloading for the newest game files.
+      location.reload();
+      return true;
+    }
+  } catch (error) { console.warn('Version check unavailable:', error); }
+  return false;
+}
 const readSave=()=>{try{return JSON.parse(localStorage.getItem(STORAGE_KEY)||'{}')||{};}catch{return{};}};
 const save=readSave();
 const players=new Map(),monsters=new Map(),projectiles=new Map(),keys=new Set();
@@ -19,7 +33,7 @@ function hash(x,y,seed=12345){let n=(Math.imul(x+seed,374761393)+Math.imul(y-see
 function tileAt(x,y){if(x<0||y<0||x>=COLS||y>=ROWS)return'wall';const pond=((x-43)/9)**2+((y-13)/7)**2;if(pond<1+(hash(x,y,44)-.5)*.27)return'water';if(x>42&&y>23&&Math.abs(x-(47+Math.sin(y*.42)*3))<1.4)return'water';const safe=Math.abs(x-15)<6&&Math.abs(y-18)<6;if(!safe&&hash(x,y,91)>.887&&hash(x+1,y,55)>.24)return'tree';return'grass';}
 function connect(){ui('status').textContent='Connecting…';ui('dot').classList.remove('online');const url=SERVER_URL?SERVER_URL.replace(/^http/,'ws').replace(/\/$/,''):(location.protocol==='https:'?'wss://':'ws://')+location.host;ws=new WebSocket(url);
 ws.onopen=()=>{ui('status').textContent='Connected';ui('dot').classList.add('online');retries=0;ws.send(JSON.stringify({type:'init',save:{...readSave(),name:ui('name').value}}));};
-ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}if(m.type==='welcome'){readyToSave=false;myId=m.id;players.clear();monsters.clear();projectiles.clear();m.players.forEach(updatePlayer);m.monsters.forEach(updateMonster);}
+ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}if(m.type==='welcome'){if(checkServerVersion(m.version))return;readyToSave=false;myId=m.id;players.clear();monsters.clear();projectiles.clear();m.players.forEach(updatePlayer);m.monsters.forEach(updateMonster);}
 else if(m.type==='join')updatePlayer(m.player);
 else if(m.type==='state'){if(m.players.some(p=>p.id===myId))readyToSave=true;const ids=new Set();m.players.forEach(p=>{ids.add(p.id);updatePlayer(p);});for(const id of players.keys())if(!ids.has(id))players.delete(id);m.monsters.forEach(updateMonster);const shots=new Set();for(const b of m.projectiles){shots.add(b.id);const old=projectiles.get(b.id);if(old){old.tx=b.x;old.ty=b.y;}else projectiles.set(b.id,{...b,tx:b.x,ty:b.y});}for(const id of projectiles.keys())if(!shots.has(id))projectiles.delete(id);}
 else if(m.type==='leave')players.delete(m.id);

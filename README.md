@@ -56,3 +56,13 @@ On Render Free, the backend may sleep after periods of inactivity. Only Node.js 
 ## Notes
 
 The map is deterministic (same trees/water on both sides). Collision and combat are enforced by the server. This is an early multiplayer prototype, not a secured production account system.
+
+## Automatic updates and cache refresh
+
+- `public/index.html` requests `game.js` with a unique timestamp on **every page open or reload**, bypassing old cached JavaScript.
+- Render's Node server responds with `Cache-Control: no-store` for game files so browsers revalidate/load the HTML rather than hanging onto an old copy.
+- The WebSocket welcome message contains a version fingerprint of the deployed files. If it changes **while a player keeps the page open** (for example after a Render redeploy/reconnect), the client saves progress and automatically reloads once.
+- The game preserves localStorage saves; no progress reset or storage clearing is required.
+- Browser code cannot literally invoke Ctrl+Shift+R. This is the practical equivalent for this project's JS/HTML files.
+- With an **InfinityFree** frontend, you still must upload the new `public/` files there. A new backend deployment cannot magically replace old client files on InfinityFree.
+- Keep `public/index.html` and `public/game.js` together on either host. No new dependencies are needed.
