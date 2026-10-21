@@ -114,3 +114,17 @@ player's PC clock. Player saves remain unchanged.
 - Action bar has five slots, shortcut keys 1–5. Slot 1 Whirlwind spins for three seconds while moving, deals repeated area damage, and has an 11-second cooldown from activation. Slots 2–5 are placeholders.
 - Controls guide moves to lower right.
 - Changes are server authoritative for stat resets, chat, and Whirlwind. Use updated server.js and both public files together.
+
+
+## New in this update
+- Hold down a stat `+` button to continuously spend available points. Upgrades remain server-validated.
+- Whirlwind's overlay disappears completely when ready (no black box or `0s`).
+- Removed sword/jump debug status and player collision-box outline.
+- Slot **2** / key **2**: Earthbreaker. Aim with the mouse, leap up to 230 world units (520 ms), then stun monsters within 100 units for 2 seconds. 9-second cooldown. Landing cracks linger and fade over 4.4 seconds. Invalid landing locations cannot be selected.
+- Expanded Stats window with melee attack, attack speed, magic attack, hit rating, crit chance, crit damage, max HP and movement speed.
+
+### Deployment
+Upload `server.js` at the GitHub repository root and `public/game.js` and `public/index.html` inside `public`, then commit. Render redeploys automatically if enabled. Both client and server files must be updated together.
+
+### Verification
+Both JavaScript files passed Node syntax checks. A live multiplayer integration test was not possible in this environment because the `ws` package was not locally available.
