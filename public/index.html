@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Meadow Multiplayer</title>
+<style>
+  * {box-sizing:border-box} html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#182d24;color:#fff;font-family:system-ui,Segoe UI,sans-serif}
+  canvas{width:100vw;height:100vh;display:block;image-rendering:pixelated;touch-action:none}
+  .hud{position:fixed;left:18px;top:18px;background:#10251edc;border:1px solid #6b9a7755;border-radius:12px;padding:13px 16px;box-shadow:0 6px 25px #0005;pointer-events:none}
+  .title{font-weight:800;font-size:17px;letter-spacing:.3px}.meta{margin-top:5px;color:#d0e4d0;font-size:13px}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;background:#efb45f;margin-right:6px}.dot.online{background:#74d991}.hint{position:fixed;left:18px;bottom:16px;font-size:13px;color:#d7e6d8;background:#10251ebd;border-radius:8px;padding:9px 12px;pointer-events:none}
+  @media(max-width:600px){.hud{left:10px;top:10px;padding:10px 12px}.hint{left:10px;bottom:10px;font-size:11px}}
+</style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<div class="hud"><div class="title">🌿 Meadow Multiplayer</div><div class="meta"><span id="dot" class="dot"></span><span id="status">Connecting…</span> · <span id="count">0</span> players online</div></div>
+<div class="hint">Move: WASD / Arrow keys · Trees and water block movement</div>
+<script src="game.js"></script>
+</body></html>
