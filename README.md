@@ -96,3 +96,12 @@ player's PC clock. Player saves remain unchanged.
 - STR adds melee damage, AGI reduces sword cooldown, VIT increases max health, INT increases displayed magic damage (magic spells not implemented yet), DEX improves monster hit rating, LUK improves critical chance and critical damage. Bats need more hit rating than rats. Low hit rating can cause misses.
 - Save data now includes allocated stats and remains in browser localStorage. The server checks saved stat allocations against points earned for the submitted level, but browser saves remain editable and are not appropriate for competitive progression.
 - Replace the full `server.js`, `public/game.js`, and `public/index.html` together in your GitHub repository. Render must run the updated server for stats and mouse aiming to work.
+
+
+## Combat / movement update
+- Left Shift sprints (285 versus 175 walking speed). Running drains 33 energy/second, resting/walking regenerates 19/second. Energy is server-controlled.
+- Hold left mouse to auto attack; sword faces cursor and swings. Server controls attack cooldown.
+- Monsters are knocked back on sword hits; players are knocked back when damaged. Server enforces collisions.
+- Damage numbers and misses appear at the point of impact.
+- Jump now lasts 480 ms. Server rejects bat spit hits throughout the jump window (while airborne).
+- Replace server.js AND public/game.js AND public/index.html together. Existing browser saves stay intact.
